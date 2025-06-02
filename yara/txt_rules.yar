@@ -16,12 +16,13 @@ rule txtSuspiciousCommands {
         $mshta = "mshta"
         $regsvr = "regsvr32"
         $cmdExec = "cmd.exe /c"
-        $b64long = /[A-Za-z0-9+/]{100,}={0,2}/
+        $b64long = /[A-Za-z0-9+\/]{100,}={0,2}/
 
     condition:
         2 of ($psEncoded, $psDownload, $certutil, $wget, $curl, $invokeWeb, $invokeExp, $mshta, $regsvr, $cmdExec) or
         $b64long
 }
+
 
 rule txtContainsSuspiciousURLs {
     meta:
@@ -31,7 +32,7 @@ rule txtContainsSuspiciousURLs {
         filetype = "txt"
 
     strings:
-        $url1 = /http[s]?:\/\/[a-zA-Z0-9.-]{5,}\/[a-zA-Z0-9]{10,}/
+        $url1 = /http[s]?:\/\/[a-zA-Z0-9.\-]{5,}\/[a-zA-Z0-9]{10,}/
         $url2 = "pastebin.com"
         $url3 = "raw.githubusercontent.com"
         $url4 = "ngrok.io"
