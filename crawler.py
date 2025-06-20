@@ -120,7 +120,6 @@ def pageSelenium(keyword):
 
     while True:
         print(f"📄 페이지 {page} ------------------------------")
-        password = 'spzmfzoa2025!@#'
         tor_contorller.renewTorIP(password)
         time.sleep(10)
         driver = tor_contorller.create_tor_driver()
