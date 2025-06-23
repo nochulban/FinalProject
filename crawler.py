@@ -22,6 +22,11 @@ torPassword = os.getenv('TOR_PASSWORD')
 
 #grayhatAPI
 def grayhatApi(keyword):
+
+    start_time = time.time()
+    request_count = 0
+    total_duration = 0
+
     # 연결 설정
     conn = http.client.HTTPSConnection("buckets.grayhatwarfare.com")
 
@@ -77,8 +82,16 @@ def grayhatApi(keyword):
 
                 #연결확인 후 Insert
                 try:        
+                    loop_start = time.time()
+
                     getHeaders = {"User-Agent": "Mozilla/5.0"} 
                     response = requests.get(httpsName, headers=getHeaders, timeout=8, stream=True, verify=False)        
+
+                    loop_end = time.time()
+                    
+                    duration = loop_end - loop_start
+                    total_duration += duration
+                    request_count += 1
 
                     if response.status_code == 200: #정상 Insert
                         print(f"✅ 연결 가능: {httpsName}")                        
@@ -96,23 +109,26 @@ def grayhatApi(keyword):
         print(f"[!] 오류 발생: {e}")
         print(data.decode("utf-8"))
 
+    end_time = time.time()
+    if request_count > 0:
+        avg_time = total_duration / request_count
+    else:
+        avg_time = 0
+
+    print("\n[⏱️ API 크롤링 통계]")
+    print(f"총 요청 횟수: {request_count}")
+    print(f"총 소요 시간: {end_time - start_time:.2f}초")
+    print(f"평균 요청 시간: {avg_time:.2f}초")
+
 
 
 #grayhatPageSelenium
 def pageSelenium(keyword):
-    # # Chrome 옵션 설정 (Windows에서도 헤드리스로 작동)
-    # options = Options()
-    # options.add_argument("--headless=new")  # 최신 방식의 헤드리스 모드
-    # options.add_argument("--disable-gpu")
-    # options.add_argument("--window-size=1920,1080")
-
-
-    # # 크롬 드라이버 실행
-    # driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
-    # options = webdriver.ChromeOptions()
-    # options.add_experimental_option("excludeSwitches", ["enable-logging"])
+    start_time = time.time()
+    request_count = 0
+    total_duration = 0
     headers = {"User-Agent": "Mozilla/5.0"}  # 요청 차단 우회용 헤더
-    # #browser = webdriver.Chrome(options=options)
+
 
 
     page = 1
@@ -120,6 +136,7 @@ def pageSelenium(keyword):
 
     while True:
         print(f"📄 페이지 {page} ------------------------------")
+        password = os.getenv('TORPASSWORD')
         tor_contorller.renewTorIP(password)
         time.sleep(10)
         driver = tor_contorller.create_tor_driver()
@@ -168,7 +185,13 @@ def pageSelenium(keyword):
 
                     #연결확인 후 Insert
                     try:        
+                        loop_start = time.time()
                         response = requests.get(httpsName, headers=headers, timeout=8, stream=True, verify=False)
+                        
+                        loop_end = time.time()
+                        duration = loop_end - loop_start
+                        total_duration += duration
+                        request_count += 1
                         print(f"[{base_url}] 응답 상태 코드: {response.status_code}")
 
                         if response.status_code == 200: #정상 Insert
@@ -188,7 +211,20 @@ def pageSelenium(keyword):
             print(f"❌ 페이지 {page} 크롤링 중 오류 발생: {e}")
             
         page += 1
-    driver.quit()    
+        driver.quit()  
+        
+    end_time = time.time()
+    if request_count > 0:
+        avg_time = total_duration / request_count
+    else:
+        avg_time = 0
+
+    print("\n[⏱️ Selenium 크롤링 통계]")
+    print(f"총 요청 횟수: {request_count}")
+    print(f"총 소요 시간: {end_time - start_time:.2f}초")
+    print(f"평균 요청 시간: {avg_time:.2f}초") 
+
+ 
 def extract_extension(filename):
     return filename.split('.')[-1] if '.' in filename else ''
 
