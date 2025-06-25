@@ -1,6 +1,7 @@
 import os
 import re
 import csv
+import time
 import subprocess
 import shutil
 from dotenv import load_dotenv
@@ -49,6 +50,8 @@ def convert_hwp_to_pdf(directory: str, input_path:str) -> str:
     
 def convert_documents(directory: str, delete_original: bool = False):
     SKIP_TEXT_EXTENSIONS = ['txt', 'csv', 'xlsx']
+    total_duration = 0
+    converted_count = 0
 
     for root, _, files in os.walk(directory):
         for file in files:
@@ -57,6 +60,7 @@ def convert_documents(directory: str, delete_original: bool = False):
 
             file_path = os.path.join(root, file)
             ext = file.split('.')[-1].lower()
+
             try:
                 if ext not in SUPPORTED_EXTENSIONS:
                     print(f"[⛔️] 지원하지 않는 형식 건너뜀: {file_path}")
@@ -67,6 +71,8 @@ def convert_documents(directory: str, delete_original: bool = False):
                     continue
 
                 print(f"[📄] 변환 시작: {file_path}")
+                start_time = time.time()
+
                 file_base_name = os.path.splitext(file)[0]
                 save_dir = os.path.join(directory, file_base_name)
                 os.makedirs(save_dir, exist_ok=True)
@@ -80,6 +86,11 @@ def convert_documents(directory: str, delete_original: bool = False):
                     if delete_original:
                         os.remove(file_path)
                         print(f"[🗑] 원본 PNG 삭제됨: {file_path}")
+
+                    end_time = time.time()
+                    duration = end_time - start_time
+                    total_duration += duration
+                    print(f"⏱️ 변환 시간: {duration:.2f}초")
                     continue
 
                 if ext == 'hwp':
@@ -97,6 +108,7 @@ def convert_documents(directory: str, delete_original: bool = False):
                     page.save(image_path, "PNG")
 
                 print(f"[✅] 변환 완료: {len(images)}페이지 → {save_dir}")
+                converted_count += 1
 
                 if delete_original:
                     if ext != 'pdf':
@@ -106,8 +118,23 @@ def convert_documents(directory: str, delete_original: bool = False):
                         os.remove(file_path)
                         print(f"[🗑] 원본 PDF 삭제됨: {file_path}")
 
+                end_time = time.time()
+                duration = end_time - start_time
+                total_duration += duration
+                print(f"⏱️ 변환 시간: {duration:.2f}초")
+
             except Exception as e:
                 print(f"[❌] 변환 실패: {file_path} - {str(e)}")
+
+    if converted_count > 0:
+        avg_time = total_duration / converted_count
+    else:
+        avg_time = 0
+
+    print("\n📊 [문서 변환 통계]")
+    print(f"📄 변환된 파일 수: {converted_count}")
+    print(f"⏱️ 총 소요 시간: {total_duration:.2f}초")
+    print(f"📈 평균 변환 시간: {avg_time:.2f}초")
 
 
 
