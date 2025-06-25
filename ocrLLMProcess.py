@@ -1,6 +1,7 @@
 import os
 import pandas as pd
 import uuid
+import time
 import json
 import requests
 import infoBlur
@@ -78,7 +79,11 @@ def call_clova_ocr(image_path: str) -> str:
         return ""
 
 def ocr_documents(MAIN_DIR):
-    # 먼저 루트 디렉토리의 텍스트 파일 처리
+
+    # ⏱️ 루트 텍스트 처리 통계
+    text_total_time = 0
+    text_count = 0
+
     print(f"[📁] 루트 디렉토리 텍스트 파일 처리 중: {MAIN_DIR}")
     text_files = sorted([
         f for f in os.listdir(MAIN_DIR)
@@ -87,9 +92,9 @@ def ocr_documents(MAIN_DIR):
 
     for txt_file in text_files:
         txt_path = os.path.join(MAIN_DIR, txt_file)
+        start = time.time()
         extracted_text = extract_text_from_file(txt_path)
 
-        # 개인정보 탐지
         pii_data = detectUseLLM.detect_pii_with_ollama(extracted_text)
 
         found_info = []
@@ -101,29 +106,39 @@ def ocr_documents(MAIN_DIR):
             with open(info_path, 'w', encoding='utf-8') as f:
                 for item in found_info:
                     f.write(item + "\n")
-            print(f"[🔐] 루트 개인정보 {len(found_info)}건 저장 완료: {info_path}")
 
             masked_text = mask_personal_info(extracted_text, found_info)
             masked_path = os.path.join(MAIN_DIR, f"{txt_file}_masked.txt")
             with open(masked_path, 'w', encoding='utf-8') as f:
                 f.write(masked_text)
-            print(f"[⚠️] 마스킹된 결과 저장 완료: {masked_path}")
 
             connectDatabase.updatePersonalInfoTrue(txt_file)
         else:
             print(f"[✅] 개인정보 미발견: {txt_file}")
 
+        end = time.time()
+        duration = end - start
+        text_total_time += duration
+        text_count += 1
+        print(f"⏱️ 텍스트 처리 시간: {duration:.2f}초")
+
+    if text_count > 0:
+        print(f"\n📊 [텍스트 처리 요약] 평균 시간: {text_total_time / text_count:.2f}초 ({text_count}건)\n")
     print("=" * 80)
 
-    # 하위 폴더별 OCR + 이미지 마스킹 처리
+    # ⏱️ 폴더 OCR 통계
+    folder_total_time = 0
+    folder_count = 0
+
     for folder in os.listdir(MAIN_DIR):
         folder_path = os.path.join(MAIN_DIR, folder)
         if not os.path.isdir(folder_path):
             continue
 
         print(f"[📂] 하위 폴더 처리: {folder_path}")
-        image_files = sorted([f for f in os.listdir(folder_path) if f.endswith('.png')])
+        folder_start = time.time()
 
+        image_files = sorted([f for f in os.listdir(folder_path) if f.endswith('.png')])
         all_texts = []
         all_json = []
 
@@ -138,14 +153,11 @@ def ocr_documents(MAIN_DIR):
             continue
 
         full_text = "\n".join(all_texts)
-
         result_path = os.path.join(folder_path, "ocr_result.txt")
         with open(result_path, 'w', encoding='utf-8') as f:
             f.write(full_text)
-        print(f"[📝] OCR 결과 저장 완료: {result_path}")
 
         pii_data = detectUseLLM.detect_pii_with_ollama(full_text)
-
         found_info = []
         for values in pii_data.values():
             found_info.extend(values)
@@ -155,7 +167,6 @@ def ocr_documents(MAIN_DIR):
             with open(info_path, 'w', encoding='utf-8') as f:
                 for item in found_info:
                     f.write(item + "\n")
-            print(f"[🔐] 이미지 내 개인정보 {len(found_info)}건 저장 완료: {info_path}")
 
             connectDatabase.updatePersonalInfoTrue(folder)
 
@@ -166,11 +177,19 @@ def ocr_documents(MAIN_DIR):
             masked_path = os.path.join(folder_path, "masked_result.txt")
             with open(masked_path, 'w', encoding='utf-8') as f:
                 f.write(masked_text)
-            print(f"[⚠️] 이미지 OCR 마스킹 결과 저장 완료: {masked_path}")
         else:
             print("[✅] 이미지 내 개인정보 미발견")
 
+        folder_end = time.time()
+        folder_duration = folder_end - folder_start
+        folder_total_time += folder_duration
+        folder_count += 1
+        print(f"⏱️ 폴더 처리 시간: {folder_duration:.2f}초")
         print("=" * 80)
+
+    if folder_count > 0:
+        print(f"\n📊 [폴더 OCR 요약] 평균 시간: {folder_total_time / folder_count:.2f}초 ({folder_count}건)\n")
+
 
 
 
