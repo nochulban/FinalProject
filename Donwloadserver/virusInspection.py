@@ -2,6 +2,7 @@ import requests
 import hashlib
 import paramiko
 import os
+import time
 import connectDatabase
 import yara
 from dotenv import load_dotenv
@@ -63,22 +64,48 @@ def useVirusTotal(file_url, file_name, file_hash, extension):
 
 def scanVirusTotalDirectory(directory):
     count = 0
+    total_duration = 0
+    request_count = 0
+
     for root, _, files in os.walk(directory):
         for file in files:
             if file == '.DS_Store':
-                pass
+                continue
+
             file_path = os.path.join(root, file)
             try:                
                 if count == 10:
-                    print('10회차 횟주 제한 종료')
+                    print('🔁 10회차 요청 제한 - 스캔 종료')
                     break
+
                 url = root.split('isolation/')[1]
-                extension = file.split('.')[1]
+                extension = file.split('.')[-1]
                 file_hash = getFileHash(file_path)
-                useVirusTotal(url, file, file_hash,extension)
-                count+=1
+
+                print(f"\n🔍 [파일 분석 시작] {file} ({file_hash})")
+                start_time = time.time()
+                useVirusTotal(url, file, file_hash, extension)
+                end_time = time.time()
+
+                duration = end_time - start_time
+                total_duration += duration
+                request_count += 1
+                count += 1
+
+                print(f"⏱️ 분석 시간: {duration:.2f}초")
+
             except Exception as e:
                 print(f"[!] 파일 처리 중 오류 발생: {file_path} - {str(e)}")
+
+    if request_count > 0:
+        avg_time = total_duration / request_count
+    else:
+        avg_time = 0
+
+    print("\n📊 [VirusTotal 스캔 요약]")
+    print(f"🔢 총 요청 수: {request_count}")
+    print(f"⏱️ 총 소요 시간: {total_duration:.2f}초")
+    print(f"📈 평균 분석 시간: {avg_time:.2f}초")
 
 ##################
 ##################
@@ -127,15 +154,47 @@ def useYara(rootPath :str, filePath: str, fileUrl: str, fileName: str, fileHash:
 
 def scanDirectoryYara(root_dir: str) -> dict:
     result = {}
+    total_duration = 0
+    request_count = 0
+
     for root, _, files in os.walk(root_dir):
         for file in files:
             file_path = os.path.join(root, file)
-            fileUrl = root.split('isolation/')[1]
-            extension = file.split('.')[1]
-            fileHash = getFileHash(file_path)
-            matched_rules = useYara(root_dir, file_path, fileUrl, extension, fileHash, extension)
-            if matched_rules:
-                result[file_path] = matched_rules
+
+            try:
+                fileUrl = root.split('isolation/')[1]
+                extension = file.split('.')[-1]
+                fileHash = getFileHash(file_path)
+
+                print(f"\n🔍 [YARA 검사 시작] {file}")
+
+                start_time = time.time()
+                matched_rules = useYara(root_dir, file_path, fileUrl, extension, fileHash, extension)
+                end_time = time.time()
+
+                duration = end_time - start_time
+                total_duration += duration
+                request_count += 1
+
+                print(f"⏱️ 검사 시간: {duration:.2f}초")
+
+                if matched_rules:
+                    result[file_path] = matched_rules
+
+            except Exception as e:
+                print(f"[!] 오류 발생 - {file_path}: {str(e)}")
+
+    # 통계 출력
+    if request_count > 0:
+        avg_time = total_duration / request_count
+    else:
+        avg_time = 0
+
+    print("\n📊 [YARA 검사 요약]")
+    print(f"🔢 총 검사 파일 수: {request_count}")
+    print(f"⏱️ 총 소요 시간: {total_duration:.2f}초")
+    print(f"📈 평균 검사 시간: {avg_time:.2f}초")
+
     return result
 
 
@@ -145,10 +204,6 @@ def scanDirectoryYara(root_dir: str) -> dict:
 #file FTP download -> main
 def sendFileMainSFTP(mainroot, filePath):
     try:
-        mainIP = os.getenv('MAIN_IP')
-        mainID = os.getenv('MAIN_ID')
-        mainPASSWORD = os.getenv('MAIN_PASSWORD')
-
         #print(f'{mainID}')
 
         transport = paramiko.Transport((os.getenv('MAIN_IP'), 22))
@@ -162,6 +217,7 @@ def sendFileMainSFTP(mainroot, filePath):
         sftp.close()
         transport.close()
         print('파일전송 완료')
+
     except Exception as e:
         print(f'에러 발생: {e}')
 
