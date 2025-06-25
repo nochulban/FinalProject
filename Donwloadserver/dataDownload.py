@@ -2,6 +2,7 @@ import boto3
 import os
 import connectDatabase
 import hashlib
+import time
 from dotenv import load_dotenv
 
 os.chdir(os.path.dirname(os.path.abspath(__file__))) #경로 최소화 시 필요
@@ -24,11 +25,17 @@ prefix = ''  # 빈 문자열로 설정하면 버킷 전체에서 객체를 나�
 # S3에서 해당 prefix 아래의 파일들 가져오기
 def dataDownload(root, url, bucket_name):
     paginator = s3.get_paginator('list_objects_v2')
+    total_files = 0
+    total_duration = 0
+
     for page in paginator.paginate(Bucket=bucket_name, Prefix=prefix):
         for obj in page.get('Contents', []):
             key = obj['Key']
             if key.endswith('/'):  # 디렉터리라면 생략
                 continue
+
+            total_files += 1
+            loop_start = time.time()
 
             # 로컬 저장 경로 구성
             local_path = os.path.join(f'{root}/{bucket_name}', key)
@@ -41,6 +48,21 @@ def dataDownload(root, url, bucket_name):
                 connectDatabase.updateFileHash(f'{url}/{key}', fileHash)
             except Exception as e:
                 print('에러발생', e)
+
+            loop_end = time.time()
+            duration = loop_end - loop_start
+            total_duration += duration
+            print(f'⏱️ 다운로드 시간: {duration:.2f}초')
+
+    # 최종 통계 출력
+    if total_files > 0:
+        avg_time = total_duration / total_files
+    else:
+        avg_time = 0
+
+    print(f'\n📊 다운로드 완료: 총 {total_files}개 파일')
+    print(f'⏱️ 총 소요 시간: {total_duration:.2f}초')
+    print(f'📈 평균 파일당 시간: {avg_time:.2f}초')
 
 
     print(f"✅ All files downloaded from bucket: {bucket_name}")
