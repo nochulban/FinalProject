@@ -3,7 +3,7 @@ from DownloadServer import virusInspection
 import ocrLLMProcess
 import gpt_report
 
-
+#로컬용
 if __name__=="__main__":
     mainroot = '/opt/isolation'
     print("키워드를 입력하세요 : ")
@@ -31,4 +31,4 @@ if __name__=="__main__":
 
 
     # #최종
-    #gpt_report.run_pipeline(keyword)
+    gpt_report.run_pipeline(keyword)
